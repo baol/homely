@@ -15,6 +15,14 @@ const (
   Verbose = false
 )
 
+func makeTelegramClient(apiToken * string) * bot.Bot {
+  client := bot.NewClient(*apiToken)
+  client.Verbose = Verbose
+  if me := client.GetMe(); !me.Ok {
+    panic("Failed to initialize telegram bot")
+  }
+  return client
+}
 
 func telegramChannel(client * bot.Bot, userId * int64)  chan string{
   c := make(chan string)
@@ -30,17 +38,32 @@ func telegramChannel(client * bot.Bot, userId * int64)  chan string{
   return c
 }
 
+func makeMqttOptions(mqttServer * string, chatChannel chan string) * mqtt.ClientOptions {
+  opts := mqtt.NewClientOptions().AddBroker(*mqttServer)
+  opts.SetClientID("homely-telegram-bot")
+  opts.SetProtocolVersion(3)
+  opts.SetDefaultPublishHandler(makeMessageHandler(chatChannel))
+  return opts
+}
+
+
+func mqttConnectAndSubscribe(queue mqtt.Client) {
+  if token := queue.Connect(); token.Wait() && token.Error() != nil {
+    fmt.Println(token.Error())
+    panic("Cannot connect")
+  }
+
+  if token := queue.Subscribe("homely-telegram/out", 0, nil); token.Wait() && token.Error() != nil {
+    fmt.Println(token.Error())
+    panic("Cannot subscribe")
+  }
+}
+
 func makeMessageHandler(c chan string) func (client mqtt.Client, msg mqtt.Message) {
   return func (queue mqtt.Client, msg mqtt.Message) {
     message := fmt.Sprintf("TOPIC: %s\nPAYLOAD: %s\n", msg.Topic(), msg.Payload())
     c <- message
   }
-}
-
-func mainLoop() {
-  exitSignal := make(chan os.Signal)
-  signal.Notify(exitSignal, syscall.SIGINT, syscall.SIGTERM)
-  <-exitSignal
 }
 
 func checkRequired(){
@@ -55,39 +78,24 @@ func checkRequired(){
   }
 }
 
-func main() {
+func mainLoop() {
+  exitSignal := make(chan os.Signal)
+  signal.Notify(exitSignal, os.Interrupt, syscall.SIGTERM)
+  <-exitSignal
+}
 
+func main() {
   apiToken := flag.String("telegram-key", "", "Telegram bot key obtained from the @BotFather")
   userId := flag.Int64("default-user-id", 0, "Used id to be contected by default")
   mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
-
   flag.Parse()
+  checkRequired()
 
-  client := bot.NewClient(*apiToken)
-  client.Verbose = Verbose
-
-  if me := client.GetMe(); !me.Ok {
-    panic("Failed to initialize telegram bot")
-  }
-
+  client := makeTelegramClient(apiToken)
   chatChannel := telegramChannel(client, userId)
 
-  opts := mqtt.NewClientOptions().AddBroker(*mqttServer)
-  opts.SetClientID("homely-telegram-bot")
-  opts.SetProtocolVersion(3)
-  opts.SetDefaultPublishHandler(makeMessageHandler(chatChannel))
-
-  queue := mqtt.NewClient(opts)
-
-  if token := queue.Connect(); token.Wait() && token.Error() != nil {
-    fmt.Println(token.Error())
-    panic("Cannot connect")
-  }
-
-  if token := queue.Subscribe("homely-telegram/out", 0, nil); token.Wait() && token.Error() != nil {
-    fmt.Println(token.Error())
-    panic("Cannot subscribe")
-  }
+  queue := mqtt.NewClient(makeMqttOptions(mqttServer, chatChannel))
+  mqttConnectAndSubscribe(queue)
 
   chatChannel <- "Goodmorning!"
 
