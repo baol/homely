@@ -15,13 +15,25 @@ const (
   Verbose = false
 )
 
-func makeMessageHandler(client * bot.Bot, userId * int64) func (client mqtt.Client, msg mqtt.Message) {
+
+func telegramChannel(client * bot.Bot, userId * int64)  chan string{
+  c := make(chan string)
+  go func() {
+    for {
+      message := <- c
+      options := make(map[string]interface{})
+      if sent := client.SendMessage(*userId, &message, options); !sent.Ok {
+        log.Printf("Failed to send message: %s\n", *sent.Description)
+      }
+    }
+  }()
+  return c
+}
+
+func makeMessageHandler(c chan string) func (client mqtt.Client, msg mqtt.Message) {
   return func (queue mqtt.Client, msg mqtt.Message) {
     message := fmt.Sprintf("TOPIC: %s\nPAYLOAD: %s\n", msg.Topic(), msg.Payload())
-    options := make(map[string]interface{})
-    if sent := client.SendMessage(*userId, &message, options); !sent.Ok {
-      log.Printf("Failed to send message: %s\n", *sent.Description)
-    }
+    c <- message
   }
 }
 
@@ -31,15 +43,8 @@ func mainLoop() {
   <-exitSignal
 }
 
-func main() {
+func checkRequired(){
   required := []string{"telegram-key", "default-user-id"}
-
-  apiToken := flag.String("telegram-key", "", "Telegram bot key obtained from the @BotFather")
-  userId := flag.Int64("default-user-id", 0, "Used id to be contected by default")
-  mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
-
-  flag.Parse()
-
   seen := make(map[string]bool)
   flag.Visit(func(f *flag.Flag) { seen[f.Name] = true })
   for _, req := range required {
@@ -48,6 +53,15 @@ func main() {
       os.Exit(2)
     }
   }
+}
+
+func main() {
+
+  apiToken := flag.String("telegram-key", "", "Telegram bot key obtained from the @BotFather")
+  userId := flag.Int64("default-user-id", 0, "Used id to be contected by default")
+  mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
+
+  flag.Parse()
 
   client := bot.NewClient(*apiToken)
   client.Verbose = Verbose
@@ -56,10 +70,12 @@ func main() {
     panic("Failed to initialize telegram bot")
   }
 
+  chatChannel := telegramChannel(client, userId)
+
   opts := mqtt.NewClientOptions().AddBroker(*mqttServer)
   opts.SetClientID("homely-telegram-bot")
   opts.SetProtocolVersion(3)
-  opts.SetDefaultPublishHandler(makeMessageHandler(client, userId))
+  opts.SetDefaultPublishHandler(makeMessageHandler(chatChannel))
 
   queue := mqtt.NewClient(opts)
 
@@ -73,11 +89,7 @@ func main() {
     panic("Cannot subscribe")
   }
 
-  message := "Goodmorning!"
-  options := make(map[string]interface{})
-  if sent := client.SendMessage(*userId, &message, options); !sent.Ok {
-    log.Printf("Failed to send message: %s\n", *sent.Description)
-  }
+  chatChannel <- "Goodmorning!"
 
   mainLoop()
 }
