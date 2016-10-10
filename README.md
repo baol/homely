@@ -17,8 +17,7 @@ But this is also an enabler for more MQTT fun!
 
 ### Working
 
-telegram
---------
+#### telegram
 
 This bot will listen to homely-telegram/out and send the received
 message using the configured account and userid.
