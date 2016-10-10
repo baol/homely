@@ -1,5 +1,6 @@
-Homely
-======
+# Homely
+
+## Idea
 
 A collection of glue programs for Domoticz, Frity!Box, and Telegram
 using MQTT.
@@ -12,8 +13,9 @@ E.g. "Baol's back home", "Main door opened", and so on...
 
 But this is also an enabler for more MQTT fun!
 
-**DRAFT OF AN IDEA**
-**There is nothing here yet :)**
+## Implementation
+
+### Working
 
 telegram
 --------
@@ -25,6 +27,10 @@ message using the configured account and userid.
         "message": "Main door open"
     }
 
+### TODO
+
+#### telegram
+
 The bot will also publish the messages received to homely-telegram/in
 using the same format using webhooks.
 
@@ -33,8 +39,7 @@ using the same format using webhooks.
     }
 
 
-fritzwho
---------
+#### fritzwho
 
 This bot will poll the Fritz!BOX API and check for added/removed
 connected devices.
@@ -47,11 +52,10 @@ message to homely-fritzwho/out/MacAddress/Status, e.g.
 Useful to know witch devices are active (e.g. phones) for automatic
 presence notification.
 
-domofilter
-----------
+#### domofilter
 
 Domofilter listens to domoticz/out messages republishes them to
-homely-domofilter/out/${device}/${value}
+homely-domofilter/out/${device}/${value} when the status changes.
 
         homely-domoticz/out/4/0
         homely-domoticz/out/4/1
@@ -61,16 +65,26 @@ Makes it easier to use *wiring* and *telegram* together.
 Analgously devices can be controlled sending messages to
 homely-domofilter/in/${device}/${value}
 
-wiring
-------
+#### wiring
 
 Wiring will listen on multiple MQTT queues and republish the messages
 into other queues, after filtering and applying a transformation.
 
     source-queue dest-queue json
 
-Examples of what you may find here one day
-------------------------------------------
+Some form of xpath filtering and json transformation (e.g. JavaScript
+will be needed) as well in the rules.
+
+Wiring is stateless, to implement stateful actions we will need
+another bot to accumulate state and emit events to be used by
+wiring/domofilter/etc.
+
+#### hsm
+
+A state machine for MQTT that follows a flow chart.
+
+### Examples of what you may find here one day
+
 
     raspberry$ domofilter
     raspberry$ telegram --telegram-key 12345678:XXXXXXXX --default-user-id 123456
