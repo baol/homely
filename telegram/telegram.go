@@ -1,16 +1,17 @@
-// -+- tab-width: 2 -+-
+// -+- mode: go; tab-width: 2 -+-
 package main
 
 import (
   "encoding/json"
   "flag"
   "fmt"
-  mqtt "github.com/eclipse/paho.mqtt.golang"
-  bot "github.com/meinside/telegram-bot-go"
   "log"
   "os"
   "os/signal"
   "syscall"
+
+  mqtt "github.com/eclipse/paho.mqtt.golang"
+  bot "github.com/meinside/telegram-bot-go"
 )
 
 const (
@@ -35,12 +36,8 @@ func telegramChannel(client *bot.Bot, userId *int64) chan string {
   go func() {
     for {
       message := <-c
-      var m Message
-      if err := json.Unmarshal([]byte(message), &m); err != nil {
-        log.Printf("Failed to decode message")
-      }
       options := make(map[string]interface{})
-      if sent := client.SendMessage(*userId, &m.message, options); !sent.Ok {
+      if sent := client.SendMessage(*userId, &message, options); !sent.Ok {
         log.Printf("Failed to send message: %s\n", *sent.Description)
       }
     }
@@ -70,8 +67,11 @@ func mqttConnectAndSubscribe(queue mqtt.Client) {
 
 func makeMessageHandler(c chan string) func(client mqtt.Client, msg mqtt.Message) {
   return func(queue mqtt.Client, msg mqtt.Message) {
-    message := fmt.Sprintf("TOPIC: %s\nPAYLOAD: %s\n", msg.Topic(), msg.Payload())
-    c <- message
+    var m Message
+    if err := json.Unmarshal([]byte(msg.Payload()), &m); err != nil {
+      log.Printf("Failed to decode message")
+    }
+    c <- m.message
   }
 }
 
