@@ -1,21 +1,27 @@
+// -+- tab-width: 2 -+-
 package main
 
 import (
+  "encoding/json"
+  "flag"
+  "fmt"
+  mqtt "github.com/eclipse/paho.mqtt.golang"
+  bot "github.com/meinside/telegram-bot-go"
+  "log"
   "os"
   "os/signal"
   "syscall"
-  "fmt"
-  "log"
-  "flag"
-  mqtt "github.com/eclipse/paho.mqtt.golang"
-  bot "github.com/meinside/telegram-bot-go"
 )
 
 const (
   Verbose = false
 )
 
-func makeTelegramClient(apiToken * string) * bot.Bot {
+type Message struct {
+  message string
+}
+
+func makeTelegramClient(apiToken *string) *bot.Bot {
   client := bot.NewClient(*apiToken)
   client.Verbose = Verbose
   if me := client.GetMe(); !me.Ok {
@@ -24,13 +30,17 @@ func makeTelegramClient(apiToken * string) * bot.Bot {
   return client
 }
 
-func telegramChannel(client * bot.Bot, userId * int64)  chan string{
+func telegramChannel(client *bot.Bot, userId *int64) chan string {
   c := make(chan string)
   go func() {
     for {
-      message := <- c
+      message := <-c
+      var m Message
+      if err := json.Unmarshal([]byte(message), &m); err != nil {
+        log.Printf("Failed to decode message")
+      }
       options := make(map[string]interface{})
-      if sent := client.SendMessage(*userId, &message, options); !sent.Ok {
+      if sent := client.SendMessage(*userId, &m.message, options); !sent.Ok {
         log.Printf("Failed to send message: %s\n", *sent.Description)
       }
     }
@@ -38,14 +48,13 @@ func telegramChannel(client * bot.Bot, userId * int64)  chan string{
   return c
 }
 
-func makeMqttOptions(mqttServer * string, chatChannel chan string) * mqtt.ClientOptions {
+func makeMqttOptions(mqttServer *string, chatChannel chan string) *mqtt.ClientOptions {
   opts := mqtt.NewClientOptions().AddBroker(*mqttServer)
   opts.SetClientID("homely-telegram-bot")
   opts.SetProtocolVersion(3)
   opts.SetDefaultPublishHandler(makeMessageHandler(chatChannel))
   return opts
 }
-
 
 func mqttConnectAndSubscribe(queue mqtt.Client) {
   if token := queue.Connect(); token.Wait() && token.Error() != nil {
@@ -59,14 +68,14 @@ func mqttConnectAndSubscribe(queue mqtt.Client) {
   }
 }
 
-func makeMessageHandler(c chan string) func (client mqtt.Client, msg mqtt.Message) {
-  return func (queue mqtt.Client, msg mqtt.Message) {
+func makeMessageHandler(c chan string) func(client mqtt.Client, msg mqtt.Message) {
+  return func(queue mqtt.Client, msg mqtt.Message) {
     message := fmt.Sprintf("TOPIC: %s\nPAYLOAD: %s\n", msg.Topic(), msg.Payload())
     c <- message
   }
 }
 
-func checkRequired(){
+func checkRequired() {
   required := []string{"telegram-key", "default-user-id"}
   seen := make(map[string]bool)
   flag.Visit(func(f *flag.Flag) { seen[f.Name] = true })
