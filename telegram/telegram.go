@@ -19,7 +19,7 @@ const (
 )
 
 type Message struct {
-  message string
+  Message string `json:"message"`
 }
 
 func makeTelegramClient(apiToken *string) *bot.Bot {
@@ -68,10 +68,12 @@ func mqttConnectAndSubscribe(queue mqtt.Client) {
 func makeMessageHandler(c chan string) func(client mqtt.Client, msg mqtt.Message) {
   return func(queue mqtt.Client, msg mqtt.Message) {
     var m Message
-    if err := json.Unmarshal([]byte(msg.Payload()), &m); err != nil {
+    log.Printf(string(msg.Payload()))
+    if err := json.Unmarshal(msg.Payload(), &m); err != nil {
       log.Printf("Failed to decode message")
     }
-    c <- m.message
+    log.Printf(m.Message)
+    c <- m.Message
   }
 }
 
