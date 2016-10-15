@@ -1,5 +1,8 @@
-// -+- mode: go; tab-width: 2 -+-
-package main
+// Package homely                          -*- mode: go; tab-width: 2 -*-
+//
+// Common library for homely daemons
+//
+package homely
 
 import (
   "encoding/json"
@@ -10,34 +13,40 @@ import (
   "os/signal"
   "syscall"
 
-  mqtt "github.com/eclipse/paho.mqtt.golang"
+  "github.com/eclipse/paho.mqtt.golang"
   bot "github.com/meinside/telegram-bot-go"
 )
 
 const (
-  Verbose = false
+  // TelegramVerbose controls verboity of the telegram bot
+  TelegramVerbose = false
 )
 
+// Message mqtt queue communication type
 type Message struct {
   Message string `json:"message"`
 }
 
-func makeTelegramClient(apiToken *string) *bot.Bot {
+// MakeTelegramClient creates a telegram client given the token
+// obtained from the @BotFather
+func MakeTelegramClient(apiToken *string) *bot.Bot {
   client := bot.NewClient(*apiToken)
-  client.Verbose = Verbose
+  client.Verbose = TelegramVerbose
   if me := client.GetMe(); !me.Ok {
     panic("Failed to initialize telegram bot")
   }
   return client
 }
 
-func telegramChannel(client *bot.Bot, userId *int64) chan string {
+// TelegramChannel creates a channel and listens on it for new strings
+// to be sent to userId
+func TelegramChannel(client *bot.Bot, userID *int64) chan string {
   c := make(chan string)
   go func() {
     for {
       message := <-c
       options := make(map[string]interface{})
-      if sent := client.SendMessage(*userId, &message, options); !sent.Ok {
+      if sent := client.SendMessage(*userID, &message, options); !sent.Ok {
         log.Printf("Failed to send message: %s\n", *sent.Description)
       }
     }
@@ -45,15 +54,17 @@ func telegramChannel(client *bot.Bot, userId *int64) chan string {
   return c
 }
 
-func makeMqttOptions(mqttServer *string, chatChannel chan string) *mqtt.ClientOptions {
+// MakeMqttOptions inizializes the MQTT client options
+func MakeMqttOptions(mqttServer *string, chatChannel chan string) *mqtt.ClientOptions {
   opts := mqtt.NewClientOptions().AddBroker(*mqttServer)
   opts.SetClientID("homely-telegram-bot")
   opts.SetProtocolVersion(3)
-  opts.SetDefaultPublishHandler(makeMessageHandler(chatChannel))
+  opts.SetDefaultPublishHandler(MakeMessageHandler(chatChannel))
   return opts
 }
 
-func mqttConnectAndSubscribe(queue mqtt.Client) {
+// MqttConnectAndSubscribe connects and subscribe
+func MqttConnectAndSubscribe(queue mqtt.Client) {
   if token := queue.Connect(); token.Wait() && token.Error() != nil {
     fmt.Println(token.Error())
     panic("Cannot connect")
@@ -65,7 +76,9 @@ func mqttConnectAndSubscribe(queue mqtt.Client) {
   }
 }
 
-func makeMessageHandler(c chan string) func(client mqtt.Client, msg mqtt.Message) {
+// MakeMessageHandler returns an mqtt handler that receive messages,
+// decodes them into Messages and sends them into the given queue
+func MakeMessageHandler(c chan string) func(client mqtt.Client, msg mqtt.Message) {
   return func(queue mqtt.Client, msg mqtt.Message) {
     var m Message
     log.Printf(string(msg.Payload()))
@@ -77,8 +90,8 @@ func makeMessageHandler(c chan string) func(client mqtt.Client, msg mqtt.Message
   }
 }
 
-func checkRequired() {
-  required := []string{"telegram-key", "default-user-id"}
+// CheckRequired checks for required flags on the command line
+func CheckRequired(required []string) {
   seen := make(map[string]bool)
   flag.Visit(func(f *flag.Flag) { seen[f.Name] = true })
   for _, req := range required {
@@ -89,26 +102,9 @@ func checkRequired() {
   }
 }
 
-func mainLoop() {
+// MainLoop waits until a SIGTERM (e.g. Ctrl-C) is received
+func MainLoop() {
   exitSignal := make(chan os.Signal)
   signal.Notify(exitSignal, os.Interrupt, syscall.SIGTERM)
   <-exitSignal
-}
-
-func main() {
-  apiToken := flag.String("telegram-key", "", "Telegram bot key obtained from the @BotFather")
-  userId := flag.Int64("default-user-id", 0, "Used id to be contected by default")
-  mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
-  flag.Parse()
-  checkRequired()
-
-  client := makeTelegramClient(apiToken)
-  chatChannel := telegramChannel(client, userId)
-
-  queue := mqtt.NewClient(makeMqttOptions(mqttServer, chatChannel))
-  mqttConnectAndSubscribe(queue)
-
-  chatChannel <- "Goodmorning!"
-
-  mainLoop()
 }
