@@ -19,7 +19,7 @@ But this is also an enabler for more MQTT fun!
 
 #### hl-telegram
 
-This bot will listen to homely-telegram/out and send the received
+This bot will listen to homely/telegram/send and send the received
 message using the configured account and userid.
 
     {
@@ -30,7 +30,7 @@ message using the configured account and userid.
 
 #### hl-telegram
 
-The bot will also publish the messages received to homely-telegram/in
+The bot will also publish the messages received to homely/telegram/in
 using the same format using webhooks.
 
     {
@@ -54,15 +54,15 @@ presence notification.
 #### hl-domofilter
 
 Domofilter listens to domoticz/out messages republishes them to
-homely-domofilter/out/${device}/${value} when the status changes.
+homely/status/${device-id}/${value} when the status changes.
 
-        homely-domoticz/out/4/0
-        homely-domoticz/out/4/1
+        homely/status/24/On
+        homely/status/24/Off
 
 Makes it easier to use *wiring* and *telegram* together.
 
 Analgously devices can be controlled sending messages to
-homely-domofilter/in/${device}/${value}
+homely/command/24/On
 
 #### hl-wiring
 
@@ -81,16 +81,3 @@ wiring/domofilter/etc.
 #### hl-hsm
 
 A state machine for MQTT that follows a flow chart.
-
-### Examples of what you may find here one day
-
-
-    raspberry$ hl-domofilter
-    raspberry$ hl-telegram --telegram-key 12345678:XXXXXXXX --default-user-id 123456
-    raspberry$ cat >wiring.rc <<EOF
-        homely-domoticz/4/0 homely-telegram/out/ {'The main door has been closed'}
-        homely-domoticz/4/1 homely-telegram/out/ {'The main door has been opened'}
-        homely-domoticz/000000000000/connected homely-telegram/out/ {'Baol's home again'}
-        homely-domoticz/000000000000/disconnected homely-telegram/out/ {'Baol's phone left home'}
-    EOF
-    raspberry$ hl-wiring -c wiring.rc

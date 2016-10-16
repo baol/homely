@@ -1,4 +1,4 @@
-// Package homely                          -*- mode: go; tab-width: 2 -*-
+// Package homely
 //
 // Common library for homely daemons
 //
@@ -40,13 +40,19 @@ func MakeTelegramClient(apiToken *string) *bot.Bot {
 
 // TelegramChannel creates a channel and listens on it for new strings
 // to be sent to userId
-func TelegramChannel(client *bot.Bot, userID *int64) chan string {
-  c := make(chan string)
+func TelegramChannel(client *bot.Bot, userID *int64) chan mqtt.Message {
+  c := make(chan mqtt.Message)
   go func() {
     for {
-      message := <-c
+      msg := <-c
+      var message Message
+      log.Printf(string(msg.Payload()))
+      if err := json.Unmarshal(msg.Payload(), &message); err != nil {
+        log.Printf("Failed to decode message")
+      }
+      log.Printf(message.Message)
       options := make(map[string]interface{})
-      if sent := client.SendMessage(*userID, &message, options); !sent.Ok {
+      if sent := client.SendMessage(*userID, &message.Message, options); !sent.Ok {
         log.Printf("Failed to send message: %s\n", *sent.Description)
       }
     }
@@ -55,22 +61,22 @@ func TelegramChannel(client *bot.Bot, userID *int64) chan string {
 }
 
 // MakeMqttOptions inizializes the MQTT client options
-func MakeMqttOptions(mqttServer *string, chatChannel chan string) *mqtt.ClientOptions {
+func MakeMqttOptions(clientID string, mqttServer *string, chatChannel chan mqtt.Message) *mqtt.ClientOptions {
   opts := mqtt.NewClientOptions().AddBroker(*mqttServer)
-  opts.SetClientID("homely-telegram-bot")
+  opts.SetClientID(clientID)
   opts.SetProtocolVersion(3)
   opts.SetDefaultPublishHandler(MakeMessageHandler(chatChannel))
   return opts
 }
 
 // MqttConnectAndSubscribe connects and subscribe
-func MqttConnectAndSubscribe(queue mqtt.Client) {
+func MqttConnectAndSubscribe(queue mqtt.Client, topic map[string]byte) {
   if token := queue.Connect(); token.Wait() && token.Error() != nil {
     fmt.Println(token.Error())
     panic("Cannot connect")
   }
 
-  if token := queue.Subscribe("homely-telegram/out", 0, nil); token.Wait() && token.Error() != nil {
+  if token := queue.SubscribeMultiple(topic, nil); token.Wait() && token.Error() != nil {
     fmt.Println(token.Error())
     panic("Cannot subscribe")
   }
@@ -78,15 +84,9 @@ func MqttConnectAndSubscribe(queue mqtt.Client) {
 
 // MakeMessageHandler returns an mqtt handler that receive messages,
 // decodes them into Messages and sends them into the given queue
-func MakeMessageHandler(c chan string) func(client mqtt.Client, msg mqtt.Message) {
+func MakeMessageHandler(c chan mqtt.Message) func(client mqtt.Client, msg mqtt.Message) {
   return func(queue mqtt.Client, msg mqtt.Message) {
-    var m Message
-    log.Printf(string(msg.Payload()))
-    if err := json.Unmarshal(msg.Payload(), &m); err != nil {
-      log.Printf("Failed to decode message")
-    }
-    log.Printf(m.Message)
-    c <- m.Message
+    c <- msg
   }
 }
 

@@ -1,8 +1,9 @@
-// homely-telegram                           -*- mode: go; tab-width: 2 -*-
+// homely-telegram
 package main
 
 import (
   "flag"
+
   homely "github.com/baol/homely/lib"
   mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -18,10 +19,8 @@ func main() {
   client := homely.MakeTelegramClient(apiToken)
   chatChannel := homely.TelegramChannel(client, userID)
 
-  queue := mqtt.NewClient(homely.MakeMqttOptions(mqttServer, chatChannel))
-  homely.MqttConnectAndSubscribe(queue)
-
-  chatChannel <- "Goodmorning!"
+  queue := mqtt.NewClient(homely.MakeMqttOptions("homely-telegram", mqttServer, chatChannel))
+  homely.MqttConnectAndSubscribe(queue, map[string]byte{"homely/telegram/send": 0})
 
   homely.MainLoop()
 }
