@@ -1,5 +1,7 @@
 # Homely
 
+[![Build Status](https://drone.io/github.com/baol/homely/status.png)](https://drone.io/github.com/baol/homely/latest)
+
 ## Idea
 
 A collection of glue programs for Domoticz, Frity!Box, and Telegram
