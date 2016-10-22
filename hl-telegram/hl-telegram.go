@@ -19,7 +19,7 @@ func main() {
   client := homely.MakeTelegramClient(apiToken)
   chatChannel := homely.TelegramChannel(client, userID)
 
-  queue := mqtt.NewClient(homely.MakeMqttOptions("homely-telegram", mqttServer, chatChannel))
+  queue := mqtt.NewClient(homely.MakeMqttPublishOptions("homely-telegram", mqttServer, chatChannel))
   homely.MqttConnectAndSubscribe(queue, map[string]byte{"homely/telegram/send": 0})
 
   homely.MainLoop()

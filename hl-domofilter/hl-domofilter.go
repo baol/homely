@@ -60,7 +60,7 @@ func main() {
   flag.Parse()
 
   channel := make(chan mqtt.Message)
-  queue := mqtt.NewClient(homely.MakeMqttOptions("hl-domoticz", mqttServer, channel))
+  queue := mqtt.NewClient(homely.MakeMqttPublishOptions("hl-domoticz", mqttServer, channel))
   go republish(channel, queue)
   homely.MqttConnectAndSubscribe(queue, map[string]byte{"domoticz/out": 0, "homely/command/#": 0})
 
