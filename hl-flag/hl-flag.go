@@ -29,7 +29,6 @@ func intercept(c chan mqtt.Message, port io.ReadWriteCloser) {
 
 func main() {
 	options := serial.OpenOptions{
-		PortName:        "/dev/ttyUSB0",
 		BaudRate:        9600,
 		DataBits:        8,
 		StopBits:        1,
@@ -37,7 +36,10 @@ func main() {
 	}
 
 	mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
+	flagPort := flag.String("materia", "/dev/ttyUSB0", "USB port for Materia Flag")
 	flag.Parse()
+
+	options.PortName = *flagPort
 
 	if port, err := serial.Open(options); err != nil {
 		panic(err)
