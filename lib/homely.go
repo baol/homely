@@ -1,63 +1,22 @@
-// Package homely
+// Package homely - common utilities
 //
-// Common library for homely daemons
+// Common library for homely daemons, mainly converting mqtt topics to go channels
 //
 package homely
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/eclipse/paho.mqtt.golang"
-	bot "github.com/meinside/telegram-bot-go"
 )
 
-const (
-	// TelegramVerbose controls verboity of the telegram bot
-	TelegramVerbose = false
-)
-
-// TelegramMessage MQTT message body
-type TelegramMessage struct {
-	Message string `json:"message"`
-}
-
-// MakeTelegramClient creates a telegram client given the token
-// obtained from the @BotFather
-func MakeTelegramClient(apiToken *string) *bot.Bot {
-	client := bot.NewClient(*apiToken)
-	client.Verbose = TelegramVerbose
-	if me := client.GetMe(); !me.Ok {
-		panic("Failed to initialize telegram bot")
-	}
-	return client
-}
-
-// TelegramChannel creates a channel and listens on it for new strings
-// to be sent to userId
-func TelegramChannel(client *bot.Bot, userID *int64) chan mqtt.Message {
-	c := make(chan mqtt.Message)
-	go func() {
-		for {
-			msg := <-c
-			var message TelegramMessage
-			log.Printf(string(msg.Payload()))
-			if err := json.Unmarshal(msg.Payload(), &message); err != nil {
-				log.Printf("Failed to decode message")
-			}
-			log.Printf(message.Message)
-			options := make(map[string]interface{})
-			if sent := client.SendMessage(*userID, &message.Message, options); !sent.Ok {
-				log.Printf("Failed to send message: %s\n", *sent.Description)
-			}
-		}
-	}()
-	return c
+// NotificationMessage MQTT message body
+type NotificationMessage struct {
+	Text string `json:"message"`
 }
 
 // MakeMqttOptions inizializes the MQTT client options
@@ -91,7 +50,7 @@ func MqttConnectAndSubscribe(queue mqtt.Client, topic map[string]byte) {
 }
 
 // MakeMessageHandler returns an mqtt handler that receive messages,
-// and sends them the the channel
+// and sends them to the channel
 func MakeMessageHandler(c chan mqtt.Message) func(client mqtt.Client, msg mqtt.Message) {
 	return func(queue mqtt.Client, msg mqtt.Message) {
 		c <- msg
