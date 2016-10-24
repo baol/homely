@@ -93,7 +93,7 @@ And enjoy your notifications!
   you want to send notifications to.
   In order to know your id, send a message to your bot and go to
 
-    https://api.telegram.org/bot<BOT-KEY>/getUpdates
+        https://api.telegram.org/bot<BOT-KEY>/getUpdates
 
   (replace <BOT-KEY> with the key received from the BotFather)
 
@@ -107,7 +107,7 @@ And enjoy your notifications!
   To wire your main door events to the Materia Flag add the following
   rules in `wiring.toml`
 
-    [rule."homely/status/2/Off"."homely/flag/down"]
-    [rule."homely/status/2/On"."homely/flag/up"]
+        [rule."homely/status/2/Off"."homely/flag/down"]
+        [rule."homely/status/2/On"."homely/flag/up"]
 
 Happy hacking!
