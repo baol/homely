@@ -8,13 +8,17 @@ Unix style IoT with MQTT.
 
 Instead of developing YAMS (yet another monolithic solution) I'm
 trying to develop a bunch of small and independent softwares that
-communicate using MQTT that I call "homely".
+communicate using MQTT that I call *homely*.
 
-This bots are written in [golang](http://golang.org) so they will not
+This tools are written in [golang](http://golang.org) so they will not
 kill your Raspberry PI and should also be reasonably easy to adapt and
-extend in case they do not fit your exact need.
+extend in case they do not fit your exact needs.
 
 ## Installation
+
+You need to install [golang](http://golang.org) first, then you can
+use the go tool to install `homely` with all the needed dependency
+with the following lines:
 
     export GOPATH=~/go
     export PATH=$PATH:$GOPATH/bin
@@ -24,6 +28,8 @@ extend in case they do not fit your exact need.
 
 ## Prerequisites
 
+A Unix background :)
+
 A Linux computer (e.g. Raspberry PI) with some kind or IoT devices
 attached (433MHz, Z-Wave, ZigBee, or whatever).
 
@@ -31,15 +37,15 @@ An MQTT broker running on one of your machines (the reference
 implementation available at https://mosquitto.org/ will do, as should
 any packaged version).
 
-In the following examples we will assume that the machine is reachable
-at the address `mqtt.local`.
+In the following examples we will assume that the machine running MQTT
+is reachable at the address `mqtt.local`.
 
 Recently services like https://www.cloudmqtt.com/ started to happear
 and they offer a free plan if you need to reach your broker from the
 public internet, but for our examples installing mosquitto on your
-Raspberry should be enough.
+Raspberry PI should be enough.
 
-## Exalples
+## Examples
 
 ### Receive a desktop notification when the main door opens
 
@@ -109,5 +115,10 @@ And enjoy your notifications!
 
         [rule."homely/status/2/Off"."homely/flag/down"]
         [rule."homely/status/2/On"."homely/flag/up"]
+
+Wiring can also be used to automate other actions, like switching off
+the lights when you turn on the TV: all messages sent to
+`homely/command/<ID>/On` and `homely/command/<ID>/Off` will be translated
+in Domoticz commands by `hl-domofilter`.
 
 Happy hacking!
