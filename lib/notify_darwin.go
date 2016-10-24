@@ -1,4 +1,3 @@
-// -*- mode: go; tab-width: 2 -*-
 // +build darwin
 
 package homely
@@ -6,7 +5,7 @@ package homely
 import (
 	"log"
 
-	"github.com/deckarep/gosx-notifier"
+	gosxnotifier "github.com/deckarep/gosx-notifier"
 )
 
 // LocalNotification sends a notifications message to the local desktop

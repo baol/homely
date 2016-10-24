@@ -1,4 +1,3 @@
-// -*- mode: go; tab-width: 2 -*-
 // +build !darwin
 
 package homely

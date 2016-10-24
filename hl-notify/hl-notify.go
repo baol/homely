@@ -1,11 +1,11 @@
-// -*- mode: go; tab-width: 2 -*-
+// homely-notify - desktop notification for homely
+//
+
 package main
 
 import (
-	//"encoding/json"
 	"encoding/json"
 	"flag"
-	//"fmt"
 	"log"
 
 	homely "github.com/baol/homely/lib"
