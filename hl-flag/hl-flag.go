@@ -20,9 +20,9 @@ func intercept(c chan mqtt.Message, port io.ReadWriteCloser) {
 		msg := <-c
 		switch msg.Topic() {
 		case "homely/flag/up":
-			port.Write([]byte{'1', '1', '0', '\n'}) // flag up
+			port.Write([]byte("110\n")) // flag up at 110°
 		case "homely/flag/down":
-			port.Write([]byte{'0', '\n'}) // flag down
+			port.Write([]byte("0\n")) //   flag down at 0°
 		}
 	}
 }
