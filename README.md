@@ -2,84 +2,112 @@
 
 [![Build Status](https://drone.io/github.com/baol/homely/status.png)](https://drone.io/github.com/baol/homely/latest)
 
-## Idea
+## Introduction
 
-A collection of glue programs for Domoticz, Frity!Box, and Telegram
-using MQTT.
+Unix style IoT with MQTT.
 
-Out of the box, with a few lines of configuration, you can get
-notifications for your preferred home automation events on your
-telegram account.
+Instead of developing YAMS (yet another monolithic solution) I'm
+trying to develop a bunch of small and independent softwares that
+communicate using MQTT that I call "homely".
 
-E.g. "Baol's back home", "Main door opened", and so on...
+This bots are written in [golang](http://golang.org) so they will not
+kill your Raspberry PI and should also be reasonably easy to adapt and
+extend in case they do not fit your exact need.
 
-But this is also an enabler for more MQTT fun!
+## Installation
 
-## Implementation
+    export GOPATH=~/go
+    export PATH=$PATH:$GOPATH/bin
 
-### Working
+    go get github.com/baol/homely/...
+    go install github/baol/homely/...
 
-#### hl-telegram
+## Prerequisites
 
-This bot will listen to homely/telegram/send and send the received
-message using the configured account and userid.
+A Linux computer (e.g. Raspberry PI) with some kind or IoT devices
+attached (433MHz, Z-Wave, ZigBee, or whatever).
 
-    {
-        "message": "Main door open"
-    }
+An MQTT broker running on one of your machines (the reference
+implementation available at https://mosquitto.org/ will do, as should
+any packaged version).
 
-### TODO
+In the following examples we will assume that the machine is reachable
+at the address `mqtt.local`.
 
-#### hl-telegram
+Recently services like https://www.cloudmqtt.com/ started to happear
+and they offer a free plan if you need to reach your broker from the
+public internet, but for our examples installing mosquitto on your
+Raspberry should be enough.
 
-The bot will also publish the messages received to homely/telegram/in
-using the same format using webhooks.
+## Exalples
 
-    {
-        "message": "Watch TV"
-    }
+### Receive a desktop notification when the main door opens
 
+**A Domoticz user wants to receive Desktop notifications every time
+the Main door of his apartment opens.**
 
-#### hl-fritzwho
+For this we will need the hl-telegram, hl-notify, hl-wiring and
+hl-domofilter modules.
 
-This bot will poll the Fritz!BOX API and check for added/removed
-connected devices.
+First we need to configure domoticz to forward his messages to MQTT,
+so we go to the Hardware section and add a new "MQTT Client Gateway
+with LAN Interface" configured to forward all the messages to
+`homely.local` in the Flat (default) format.
 
-Every time a device gets connected or disconnected it will publish a
-message to homely-fritzwho/out/MacAddress/Status, e.g.
+Unfortunately Domoticz choice of topics does not fit well with homely
+so we need to run
 
-    homely-fritzwho/out/PhoneMacAddress/Connected
+    hl-domofilter --mqtt tcp://mqtt.local:1883
 
-Useful to know witch devices are active (e.g. phones) for automatic
-presence notification.
+To process some interesting Domoticz events and republish them as
+homely events. Assuming our main door sensor has id 2 (look in
+Domoticz Devices to know the id you are interested in), when the door
+will open this will publish a message to `homely/status/2/On`.
 
-#### hl-domofilter
+We also need to run the notifier
 
-Domofilter listens to domoticz/out messages republishes them to
-homely/status/${device-id}/${value} when the status changes.
+    hl-notify --mqtt tcp://mqtt.local:1883
 
-        homely/status/24/On
-        homely/status/24/Off
+that will listen `homely/notify/send` for messages in the format
+`{"message": "Main door open"}` and send them to your desktop on Mac
+OS or Linux.
 
-Makes it easier to use *wiring* and *telegram* together.
+In order to wire the two together we also need `hl-wiring`
 
-Analgously devices can be controlled sending messages to
-homely/command/24/On
+Edit `~/.homely/wiring.toml` and write your rule there using the same
+id mentioned above:
 
-#### hl-wiring
+    [rule."homely/status/2/On"."homely/notification/send"]
+    payload = '{"message": "Main door open"}'
 
-Wiring will listen on multiple MQTT queues and republish the messages
-into other queues, after filtering and applying a transformation.
+Now launch
 
-    source-queue dest-queue json
+    hl-wiring --mqtt tcp://mqtt.local:1883
 
-Some form of xpath filtering and json transformation (e.g. JavaScript
-will be needed) as well in the rules.
+And enjoy your notifications!
 
-Wiring is stateless, to implement stateful actions we will need
-another bot to accumulate state and emit events to be used by
-wiring/domofilter/etc.
+## Other tools
 
-#### hl-hsm
+* `hl-telegram` works the same way as `hl-notify`, but you first need
+  to register your bot with the @BotFather and know the numeric userid
+  you want to send notifications to.
+  In order to know your id, send a message to your bot and go to
 
-A state machine for MQTT that follows a flow chart.
+    https://api.telegram.org/bot<BOT-KEY>/getUpdates
+
+  (replace <BOT-KEY> with the key received from the BotFather)
+
+* `hl-flag` works together with an Arduino powered physical
+  notificatin devices to raise a flag on certain events, and can be
+  controlled sending empty messages to `homely/flag/up` and
+  `homely/flag/down`. See
+  [Materia Flag](https://github.com/baol/homely/tree/master/hl-flag/materia-flag)
+  for details about the device.
+
+  To wire your main door events to the Materia Flag add the following
+  rules in `wiring.toml`
+
+    [rule."homely/status/2/Off"."homely/flag/down"]
+    [rule."homely/status/2/On"."homely/flag/up"]
+
+Happy hacking!
