@@ -95,7 +95,7 @@ And enjoy your notifications!
 
         https://api.telegram.org/bot<BOT-KEY>/getUpdates
 
-  (replace <BOT-KEY> with the key received from the BotFather)
+  (replace `<BOT-KEY>` with the key received from the BotFather)
 
 * `hl-flag` works together with an Arduino powered physical
   notificatin devices to raise a flag on certain events, and can be
