@@ -45,6 +45,10 @@ and they offer a free plan if you need to reach your broker from the
 public internet, but for our examples installing mosquitto on your
 Raspberry PI should be enough.
 
+## Example Deployment Diagram
+
+![Example Deployment Diagram](homely-diagram.png)
+
 ## Examples
 
 ### Receive a desktop notification when the main door opens
