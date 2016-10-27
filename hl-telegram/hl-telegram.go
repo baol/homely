@@ -31,9 +31,9 @@ func telegramChannel(client *bot.Bot, userID *int64) chan mqtt.Message {
 		for {
 			msg := <-c
 			var message homely.NotificationMessage
-			log.Printf(string(msg.Payload()))
+			log.Println(msg.Topic(), string(msg.Payload()))
 			if err := json.Unmarshal(msg.Payload(), &message); err != nil {
-				log.Printf("Failed to decode message")
+				log.Println("Failed to decode message")
 			}
 			log.Printf(message.Text)
 			options := make(map[string]interface{})
@@ -46,6 +46,7 @@ func telegramChannel(client *bot.Bot, userID *int64) chan mqtt.Message {
 }
 
 func main() {
+	log.SetPrefix("hl-telegram: ")
 	apiToken := flag.String("telegram-key", "", "Telegram bot key obtained from the @BotFather")
 	userID := flag.Int64("user-id", 0, "Used id to be contacted (TODO: document how to get this number!)")
 	mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")

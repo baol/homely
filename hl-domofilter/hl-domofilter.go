@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -37,18 +38,16 @@ func republish(c chan mqtt.Message, queue mqtt.Client) {
 					onoff = "On"
 				}
 				topic := fmt.Sprintf("homely/status/%d/%s", int(payload["idx"].(float64)), onoff)
-				fmt.Println(topic)
+				log.Println("domoticz/out", topic)
 				if token := queue.Publish(topic, 0, false, msg.Payload()); token.Wait() && token.Error() != nil {
 					panic(token.Error())
 				}
 			}
 			// homely to domoticz
 		default:
-			fmt.Println(msg.Topic())
 			tokens := strings.Split(msg.Topic(), "/")
 			payload := fmt.Sprintf("{\"command\": \"switchlight\", \"idx\": %s, \"switchcmd\": \"%s\"}", tokens[2], tokens[3])
-			fmt.Println("domoticz/in")
-			fmt.Println(payload)
+			log.Println("domoticz/in", msg.Topic())
 			if token := queue.Publish("domoticz/in", 0, false, payload); token.Wait() && token.Error() != nil {
 				panic(token.Error())
 			}
@@ -57,6 +56,7 @@ func republish(c chan mqtt.Message, queue mqtt.Client) {
 }
 
 func main() {
+	log.SetPrefix("hl-domofilter: ")
 	mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
 	flag.Parse()
 

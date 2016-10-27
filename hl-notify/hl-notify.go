@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"log"
+	"os"
 
 	homely "github.com/baol/homely/lib"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -25,12 +26,12 @@ func notify(notificationChannel <-chan mqtt.Message) {
 }
 
 func main() {
-	log.Println("Starting")
+	log.SetPrefix("hl-notify: ")
 	mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
 	flag.Parse()
 
 	notificationChannel := make(chan mqtt.Message)
-	queue := mqtt.NewClient(homely.MakeMqttPublishOptions("homely-notification", mqttServer, notificationChannel))
+	queue := mqtt.NewClient(homely.MakeMqttPublishOptions(os.ExpandEnv("homely-notification-${HOSTNAME}"), mqttServer, notificationChannel))
 	homely.MqttConnectAndSubscribe(queue, map[string]byte{"homely/notification/send": 0})
 	go notify(notificationChannel)
 

@@ -7,7 +7,7 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -15,21 +15,21 @@ import (
 	"github.com/eclipse/paho.mqtt.golang"
 )
 
-type RulePayload struct {
-	Payload string
+type rulePayload struct {
+	payload string
 }
 
-type Config struct {
-	Rules map[string]map[string]RulePayload `toml:"rule"`
+type config struct {
+	rules map[string]map[string]rulePayload `toml:"rule"`
 }
 
-func republish(channel chan mqtt.Message, queue mqtt.Client, config Config) {
+func republish(channel chan mqtt.Message, queue mqtt.Client, cfg config) {
 	for {
 		msg := <-channel
 		topic := msg.Topic()
-		for k, v := range config.Rules[topic] {
-			fmt.Println("Sending:", k, v)
-			if token := queue.Publish(k, 0, false, v.Payload); token.Wait() && token.Error() != nil {
+		for k, v := range cfg.rules[topic] {
+			log.Println("Received:", topic, "Sending:", k, v)
+			if token := queue.Publish(k, 0, false, v.payload); token.Wait() && token.Error() != nil {
 				panic(token.Error())
 			}
 		}
@@ -37,27 +37,30 @@ func republish(channel chan mqtt.Message, queue mqtt.Client, config Config) {
 }
 
 func main() {
+
+	log.SetPrefix("hl-wiring: ")
+
 	mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
 	flag.Parse()
 
-	var config Config
+	var cfg config
 
-	if _, err := toml.DecodeFile(os.ExpandEnv("${HOME}/.homely/wiring.toml"), &config); err != nil {
+	if _, err := toml.DecodeFile(os.ExpandEnv("${HOME}/.homely/wiring.toml"), &cfg); err != nil {
 		panic(err)
 	}
 
-	fmt.Println(config)
+	log.Println(cfg)
 
 	topics := make(map[string]byte)
-	for k := range config.Rules {
-		topic := k //strings.Replace(k, "_", "/", -1)
-		fmt.Println("Subscribe:", topic)
+	for k := range cfg.rules {
+		topic := k
+		log.Println("Subscribe:", topic)
 		topics[topic] = 0
 	}
 
 	channel := make(chan mqtt.Message)
-	queue := mqtt.NewClient(homely.MakeMqttPublishOptions("hl-wiring", mqttServer, channel))
-	go republish(channel, queue, config)
+	queue := mqtt.NewClient(homely.MakeMqttPublishOptions(os.ExpandEnv("hl-wiring-${HOSTNAME}"), mqttServer, channel))
+	go republish(channel, queue, cfg)
 	homely.MqttConnectAndSubscribe(queue, topics)
 
 	homely.MainLoop()

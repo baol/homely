@@ -8,6 +8,8 @@ package main
 import (
 	"flag"
 	"io"
+	"log"
+	"os"
 
 	"github.com/baol/homely/lib"
 	"github.com/eclipse/paho.mqtt.golang"
@@ -21,13 +23,17 @@ func intercept(c chan mqtt.Message, port io.ReadWriteCloser) {
 		switch msg.Topic() {
 		case "homely/flag/up":
 			port.Write([]byte("110\n")) // flag up at 110°
+			log.Println("homely/flag/up")
 		case "homely/flag/down":
 			port.Write([]byte("0\n")) //   flag down at 0°
+			log.Println("homely/flag/down")
 		}
 	}
 }
 
 func main() {
+	log.SetPrefix("hl-flag: ")
+
 	options := serial.OpenOptions{
 		BaudRate:        9600,
 		DataBits:        8,
@@ -46,7 +52,7 @@ func main() {
 	} else {
 		defer port.Close()
 		channel := make(chan mqtt.Message)
-		queue := mqtt.NewClient(homely.MakeMqttPublishOptions("hl-domoticz", mqttServer, channel))
+		queue := mqtt.NewClient(homely.MakeMqttPublishOptions(os.ExpandEnv("hl-flag-${HOSTNAME}"), mqttServer, channel))
 		homely.MqttConnectAndSubscribe(queue, map[string]byte{"homely/flag/#": 0})
 
 		go intercept(channel, port)

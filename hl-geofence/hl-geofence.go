@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"strings"
 
 	homely "github.com/baol/homely/lib"
@@ -68,9 +69,10 @@ func geofence(home point, queue mqtt.Client, notificationChannel <-chan mqtt.Mes
 				if token := queue.Publish(topic+"/away", 0, false, payload); token.Wait() && token.Error() != nil {
 					panic(token.Error())
 				}
-
+				log.Println(topic + "/away")
 			} else if dist < acc+20.0 && fenceCache[topic] <= 0 { // inside
 				fenceCache[topic] = +1
+				log.Println(topic + "/home")
 				if token := queue.Publish(topic+"/home", 0, false, payload); token.Wait() && token.Error() != nil {
 					panic(token.Error())
 				}
@@ -78,11 +80,13 @@ func geofence(home point, queue mqtt.Client, notificationChannel <-chan mqtt.Mes
 			payload = fmt.Sprintf("{\"battery\": %f }", batt)
 			if batt < 30.0 && batteryCache[topic] >= 0 {
 				batteryCache[topic] = -1
+				log.Println(topic + "/battery/low")
 				if token := queue.Publish(topic+"/battery/low", 0, false, payload); token.Wait() && token.Error() != nil {
 					panic(token.Error())
 				}
 			} else if batteryCache[topic] <= 0 {
 				batteryCache[topic] = +1
+				log.Println(topic + "/battery/good")
 				if token := queue.Publish(topic+"/battery/good", 0, false, payload); token.Wait() && token.Error() != nil {
 					panic(token.Error())
 				}
@@ -92,6 +96,7 @@ func geofence(home point, queue mqtt.Client, notificationChannel <-chan mqtt.Mes
 }
 
 func main() {
+	log.SetPrefix("hl-geofence: ")
 	mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
 	homeLat := flag.Float64("lat", 0, "Latitude of your place")
 	homeLon := flag.Float64("lon", 0, "Longitude of your place")
@@ -99,8 +104,9 @@ func main() {
 	required := []string{"lat", "lon"}
 	homely.CheckRequired(required)
 
+	log.Printf("Home location: http://www.openstreetmap.org/#map=19/%.6f/%.6f\n", *homeLat, *homeLon)
 	notificationChannel := make(chan mqtt.Message)
-	queue := mqtt.NewClient(homely.MakeMqttPublishOptions("homely-owntracks", mqttServer, notificationChannel))
+	queue := mqtt.NewClient(homely.MakeMqttPublishOptions(os.ExpandEnv("homely-geofence-${HOSTNAME}"), mqttServer, notificationChannel))
 	homely.MqttConnectAndSubscribe(queue, map[string]byte{"owntracks/#": 0})
 	go geofence(point{*homeLat, *homeLon}, queue, notificationChannel)
 
