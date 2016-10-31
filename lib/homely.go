@@ -24,14 +24,13 @@ func MakeMqttOptions(clientID string, mqttServer *string) *mqtt.ClientOptions {
 	opts := mqtt.NewClientOptions().AddBroker(*mqttServer)
 	opts.SetClientID(clientID)
 	opts.SetProtocolVersion(3)
+	opts.SetAutoReconnect(true)
 	return opts
 }
 
 // MakeMqttPublishOptions inizializes the MQTT client options, and sets the publish handler
 func MakeMqttPublishOptions(clientID string, mqttServer *string, channel chan mqtt.Message) *mqtt.ClientOptions {
-	opts := mqtt.NewClientOptions().AddBroker(*mqttServer)
-	opts.SetClientID(clientID)
-	opts.SetProtocolVersion(3)
+	opts := MakeMqttOptions(clientID, mqttServer)
 	opts.SetDefaultPublishHandler(MakeMessageHandler(channel))
 	return opts
 }

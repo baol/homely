@@ -48,7 +48,7 @@ func telegramChannel(client *bot.Bot, userID *int64) chan mqtt.Message {
 func main() {
 	log.SetPrefix("hl-telegram: ")
 	apiToken := flag.String("telegram-key", "", "Telegram bot key obtained from the @BotFather")
-	userID := flag.Int64("user-id", 0, "Used id to be contacted (TODO: document how to get this number!)")
+	userID := flag.Int64("user-id", 0, "User id to be contacted")
 	mqttServer := flag.String("mqtt", "tcp://localhost:1883", "MQTT address")
 	flag.Parse()
 	required := []string{"telegram-key", "user-id"}
@@ -58,6 +58,7 @@ func main() {
 	chatChannel := telegramChannel(client, userID)
 
 	queue := mqtt.NewClient(homely.MakeMqttPublishOptions("homely-telegram-"+string(*userID), mqttServer, chatChannel))
+
 	homely.MqttConnectAndSubscribe(queue, map[string]byte{"homely/notification/send": 0})
 
 	homely.MainLoop()
