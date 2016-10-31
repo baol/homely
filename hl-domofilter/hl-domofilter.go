@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/baol/homely/lib"
@@ -46,7 +47,13 @@ func republish(c chan mqtt.Message, queue mqtt.Client) {
 			// homely to domoticz
 		default:
 			tokens := strings.Split(msg.Topic(), "/")
-			payload := fmt.Sprintf("{\"command\": \"switchlight\", \"idx\": %s, \"switchcmd\": \"%s\"}", tokens[2], tokens[3])
+			var payload string
+			if value, err := strconv.Atoi(tokens[3]); err != nil {
+				payload = fmt.Sprintf("{\"command\": \"switchlight\", \"idx\": %s, \"switchcmd\": \"%s\"}", tokens[2], tokens[3])
+			} else {
+				payload = fmt.Sprintf("{\"command\": \"switchlight\", \"idx\": %s, \"switchcmd\": \"Set Level\", \"level\": %d}", tokens[2], value)
+			}
+
 			log.Println("domoticz/in", msg.Topic())
 			if token := queue.Publish("domoticz/in", 0, false, payload); token.Wait() && token.Error() != nil {
 				panic(token.Error())
