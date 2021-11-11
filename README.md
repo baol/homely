@@ -1,7 +1,5 @@
 # Homely
 
-[![Build Status](https://drone.io/github.com/baol/homely/status.png)](https://drone.io/github.com/baol/homely/latest)
-
 ## Introduction
 
 Unix style IoT with MQTT.
